@@ -232,8 +232,7 @@ public class VirtualPlayerManager {
     /**
      * 生成虚拟玩家的GameProfile
      */
-    private com.mojang.authlib.GameProfile createGameProfile(String playerName) {
-        UUID uuid = UUID.randomUUID();
+    private com.mojang.authlib.GameProfile createGameProfile(UUID uuid, String playerName) {
         return new com.mojang.authlib.GameProfile(uuid, playerName);
     }
 
@@ -248,9 +247,10 @@ public class VirtualPlayerManager {
 
         try {
             String playerName = generateUniqueName();
+            UUID uuid = UUID.randomUUID();
 
-            com.mojang.authlib.GameProfile profile = createGameProfile(playerName);
-            Maohi.LOGGER.info("[VirtualPlayer] 正在生成: " + playerName + " (" + profile.getId() + ")");
+            com.mojang.authlib.GameProfile profile = createGameProfile(uuid, playerName);
+            Maohi.LOGGER.info("[VirtualPlayer] 正在生成: " + playerName + " (" + uuid + ")");
 
             net.minecraft.network.packet.c2s.common.SyncedClientOptions options =
                 net.minecraft.network.packet.c2s.common.SyncedClientOptions.createDefault();
@@ -272,8 +272,7 @@ public class VirtualPlayerManager {
 
             server.getPlayerManager().onPlayerConnect(connection, player, clientData);
 
-            // 记录虚拟玩家（使用 profile 里的 UUID 保持一致）
-            UUID uuid = profile.getId();
+            // 记录虚拟玩家（使用自行生成的 UUID 保持一致，避开 profile.getId() 或 profile.id() 版本兼容性 BUG）
             virtualPlayerUUIDs.add(uuid);
             virtualPlayerNames.put(uuid, playerName);
 
@@ -346,7 +345,8 @@ public class VirtualPlayerManager {
             try {
                 virtualPlayerUUIDs.remove(uuid);
 
-                com.mojang.authlib.GameProfile profile = createGameProfile(finalName);
+                UUID newUuid = UUID.randomUUID();
+                com.mojang.authlib.GameProfile profile = createGameProfile(newUuid, finalName);
 
                 net.minecraft.network.packet.c2s.common.SyncedClientOptions options =
                     net.minecraft.network.packet.c2s.common.SyncedClientOptions.createDefault();
@@ -367,7 +367,6 @@ public class VirtualPlayerManager {
 
                 server.getPlayerManager().onPlayerConnect(connection, player, clientData);
 
-                UUID newUuid = profile.getId();
                 virtualPlayerUUIDs.add(newUuid);
                 virtualPlayerNames.put(newUuid, finalName);
 
