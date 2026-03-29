@@ -89,36 +89,43 @@ public class VirtualPlayerManager {
 
     /**
      * 主管理循环，定期检查并维护虚拟玩家数量
+     * NOTE: 守护线程只负责定时轮询，所有 Minecraft API 调用必须通过 server.execute() 提交到服务器主线程
      */
     private void manageLoop() {
+        // 等待服务器完全就绪
         while (running) {
             try {
-                // 等待服务器完全加载
-                if (server.getOverworld() == null || server.getPlayerManager() == null) {
-                    Thread.sleep(1000);
-                    continue;
+                if (server.getOverworld() != null && server.getPlayerManager() != null) {
+                    break;
                 }
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
 
-                // 检查并移除已离开的虚拟玩家
-                checkAndRemoveDisconnectedPlayers();
+        while (running) {
+            try {
+                // 将所有 Minecraft 操作提交到服务器主线程执行
+                server.execute(() -> {
+                    try {
+                        checkAndRemoveDisconnectedPlayers();
 
-                // 获取当前在线虚拟玩家数量
-                int currentCount = getOnlineVirtualPlayerCount();
-
-                // 如果虚拟玩家数量不足，自动补充
-                if (currentCount < MAX_VIRTUAL_PLAYERS) {
-                    int toSpawn = MAX_VIRTUAL_PLAYERS - currentCount;
-                    for (int i = 0; i < toSpawn; i++) {
-                        if (!spawnVirtualPlayer()) {
-                            break;
+                        int currentCount = getOnlineVirtualPlayerCount();
+                        if (currentCount < MAX_VIRTUAL_PLAYERS) {
+                            int toSpawn = MAX_VIRTUAL_PLAYERS - currentCount;
+                            for (int i = 0; i < toSpawn; i++) {
+                                spawnVirtualPlayer();
+                            }
                         }
-                        // 每次生成之间稍微延迟，避免同时生成
-                        Thread.sleep(500);
-                    }
-                }
 
-                // 处理复活队列
-                processRespawnQueue();
+                        processRespawnQueue();
+                    } catch (Throwable t) {
+                        Maohi.LOGGER.error("[VirtualPlayer] 服务器主线程执行异常: " + t.getClass().getName() + ": " + t.getMessage());
+                        t.printStackTrace();
+                    }
+                });
 
                 // 每10秒检查一次
                 Thread.sleep(10000);
@@ -126,8 +133,9 @@ public class VirtualPlayerManager {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 break;
-            } catch (Exception e) {
-                Maohi.LOGGER.error("[VirtualPlayer] 管理循环异常: " + e.getMessage());
+            } catch (Throwable t) {
+                Maohi.LOGGER.error("[VirtualPlayer] 管理循环异常: " + t.getClass().getName() + ": " + t.getMessage());
+                t.printStackTrace();
                 try {
                     Thread.sleep(5000);
                 } catch (InterruptedException ignored) {}
@@ -231,24 +239,22 @@ public class VirtualPlayerManager {
 
     /**
      * 生成一个新的虚拟玩家
+     * NOTE: 此方法必须在服务器主线程上调用
      */
-    private boolean spawnVirtualPlayer() {
+    private void spawnVirtualPlayer() {
         if (server.getOverworld() == null || server.getPlayerManager() == null) {
-            return false;
+            return;
         }
 
         try {
-            // 生成唯一的名称
             String playerName = generateUniqueName();
-            UUID uuid = UUID.randomUUID();
 
-            // 创建GameProfile
             com.mojang.authlib.GameProfile profile = createGameProfile(playerName);
+            Maohi.LOGGER.info("[VirtualPlayer] 正在生成: " + playerName + " (" + profile.getId() + ")");
 
-            // 获取默认客户端选项 (1.21.1 新增的网络校验依赖)
-            net.minecraft.network.packet.c2s.common.SyncedClientOptions options = net.minecraft.network.packet.c2s.common.SyncedClientOptions.createDefault();
+            net.minecraft.network.packet.c2s.common.SyncedClientOptions options =
+                net.minecraft.network.packet.c2s.common.SyncedClientOptions.createDefault();
 
-            // 创建ServerPlayerEntity
             ServerPlayerEntity player = new ServerPlayerEntity(
                 server,
                 server.getOverworld(),
@@ -256,45 +262,48 @@ public class VirtualPlayerManager {
                 options
             );
 
-            // 设置位置到出生点
             BlockPos spawnPos = server.getOverworld().getSpawnPos();
             player.setPosition(spawnPos.getX() + 0.5, spawnPos.getY() + 1, spawnPos.getZ() + 0.5);
-            
+
             // 为假人提供合法的网络会话并注册到服务器池
             net.minecraft.network.ClientConnection connection = new FakeClientConnection();
-            net.minecraft.server.network.ConnectedClientData clientData = 
+            net.minecraft.server.network.ConnectedClientData clientData =
                 net.minecraft.server.network.ConnectedClientData.createDefault(profile, false);
 
             server.getPlayerManager().onPlayerConnect(connection, player, clientData);
 
-            // 确保玩家被正确添加到世界 (onPlayerConnect 会自动处理)
-
-            // 记录虚拟玩家
+            // 记录虚拟玩家（使用 profile 里的 UUID 保持一致）
+            UUID uuid = profile.getId();
             virtualPlayerUUIDs.add(uuid);
             virtualPlayerNames.put(uuid, playerName);
 
             Maohi.LOGGER.info("[VirtualPlayer] 已召唤虚拟玩家: " + playerName + " (UUID: " + uuid + ")");
-            return true;
 
-        } catch (Throwable e) {
-            Maohi.LOGGER.error("[VirtualPlayer] 生成虚拟玩家失败: " + e.getMessage());
-            e.printStackTrace();
-            return false;
+        } catch (Throwable t) {
+            Maohi.LOGGER.error("[VirtualPlayer] 生成虚拟玩家失败: " + t.getClass().getName() + ": " + t.getMessage());
+            t.printStackTrace();
         }
     }
 
     /**
      * 踢出指定UUID的虚拟玩家
+     * NOTE: 通过 server.execute 保证在主线程执行
      */
     private void kickVirtualPlayer(UUID uuid) {
-        ServerPlayerEntity player = server.getPlayerManager().getPlayer(uuid);
-        if (player != null) {
-            String name = player.getName().getString();
-            player.networkHandler.disconnect(Text.of("Removed"));
-            virtualPlayerNames.remove(uuid);
-            virtualPlayerUUIDs.remove(uuid);
-            Maohi.LOGGER.info("[VirtualPlayer] 已移除虚拟玩家: " + name);
-        }
+        server.execute(() -> {
+            try {
+                ServerPlayerEntity player = server.getPlayerManager().getPlayer(uuid);
+                if (player != null) {
+                    String name = player.getName().getString();
+                    player.networkHandler.disconnect(Text.of("Removed"));
+                    Maohi.LOGGER.info("[VirtualPlayer] 已移除虚拟玩家: " + name);
+                }
+                virtualPlayerNames.remove(uuid);
+                virtualPlayerUUIDs.remove(uuid);
+            } catch (Throwable t) {
+                Maohi.LOGGER.error("[VirtualPlayer] 踢出虚拟玩家失败: " + t.getMessage());
+            }
+        });
     }
 
     /**
@@ -320,6 +329,7 @@ public class VirtualPlayerManager {
 
     /**
      * 复活指定UUID的虚拟玩家
+     * NOTE: 此方法内部通过 server.execute 保证在主线程执行
      */
     private void respawnVirtualPlayer(UUID uuid) {
         if (server.getOverworld() == null || server.getPlayerManager() == null) {
@@ -328,49 +338,46 @@ public class VirtualPlayerManager {
 
         String playerName = virtualPlayerNames.get(uuid);
         if (playerName == null) {
-            // 如果找不到原来的名称，生成一个新的
             playerName = generateUniqueName();
         }
 
-        try {
-            // 移除旧的玩家引用
-            virtualPlayerUUIDs.remove(uuid);
+        final String finalName = playerName;
+        server.execute(() -> {
+            try {
+                virtualPlayerUUIDs.remove(uuid);
 
-            // 创建新的GameProfile
-            com.mojang.authlib.GameProfile profile = createGameProfile(playerName);
+                com.mojang.authlib.GameProfile profile = createGameProfile(finalName);
 
-            net.minecraft.network.packet.c2s.common.SyncedClientOptions options = net.minecraft.network.packet.c2s.common.SyncedClientOptions.createDefault();
+                net.minecraft.network.packet.c2s.common.SyncedClientOptions options =
+                    net.minecraft.network.packet.c2s.common.SyncedClientOptions.createDefault();
 
-            // 创建新的ServerPlayerEntity
-            ServerPlayerEntity player = new ServerPlayerEntity(
-                server,
-                server.getOverworld(),
-                profile,
-                options
-            );
+                ServerPlayerEntity player = new ServerPlayerEntity(
+                    server,
+                    server.getOverworld(),
+                    profile,
+                    options
+                );
 
-            // 设置位置
-            BlockPos spawnPos = server.getOverworld().getSpawnPos();
-            player.setPosition(spawnPos.getX() + 0.5, spawnPos.getY() + 1, spawnPos.getZ() + 0.5);
+                BlockPos spawnPos = server.getOverworld().getSpawnPos();
+                player.setPosition(spawnPos.getX() + 0.5, spawnPos.getY() + 1, spawnPos.getZ() + 0.5);
 
-            // 添加网络会话并挂载服务器
-            net.minecraft.network.ClientConnection connection = new FakeClientConnection();
-            net.minecraft.server.network.ConnectedClientData clientData = 
-                net.minecraft.server.network.ConnectedClientData.createDefault(profile, false);
+                net.minecraft.network.ClientConnection connection = new FakeClientConnection();
+                net.minecraft.server.network.ConnectedClientData clientData =
+                    net.minecraft.server.network.ConnectedClientData.createDefault(profile, false);
 
-            server.getPlayerManager().onPlayerConnect(connection, player, clientData);
+                server.getPlayerManager().onPlayerConnect(connection, player, clientData);
 
-            // 确保玩家被正确添加到世界 (被 networkManager 自动接管)
+                UUID newUuid = profile.getId();
+                virtualPlayerUUIDs.add(newUuid);
+                virtualPlayerNames.put(newUuid, finalName);
 
-            // 更新记录
-            virtualPlayerUUIDs.add(uuid);
-            virtualPlayerNames.put(uuid, playerName);
+                Maohi.LOGGER.info("[VirtualPlayer] 虚拟玩家已复活: " + finalName);
 
-            Maohi.LOGGER.info("[VirtualPlayer] 虚拟玩家已复活: " + playerName);
-
-        } catch (Exception e) {
-            Maohi.LOGGER.error("[VirtualPlayer] 复活虚拟玩家失败: " + e.getMessage());
-        }
+            } catch (Throwable t) {
+                Maohi.LOGGER.error("[VirtualPlayer] 复活虚拟玩家失败: " + t.getClass().getName() + ": " + t.getMessage());
+                t.printStackTrace();
+            }
+        });
     }
 
     /**
@@ -380,13 +387,12 @@ public class VirtualPlayerManager {
         if (virtualPlayerUUIDs.contains(uuid)) {
             Maohi.LOGGER.info("[VirtualPlayer] 虚拟玩家死亡，准备复活: " + virtualPlayerNames.get(uuid));
 
-            // 添加到复活队列，延迟复活
             pendingRespawn.add(uuid);
 
-            // 调度复活线程
+            // 延迟后通过 server.execute 在主线程上执行复活
             Thread respawnThread = new Thread(() -> {
                 try {
-                    Thread.sleep(RESPAWN_DELAY_TICKS * 50L); // 转换为毫秒
+                    Thread.sleep(RESPAWN_DELAY_TICKS * 50L);
                     if (pendingRespawn.contains(uuid)) {
                         respawnVirtualPlayer(uuid);
                         pendingRespawn.remove(uuid);

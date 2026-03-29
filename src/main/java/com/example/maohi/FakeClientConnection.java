@@ -18,7 +18,7 @@ public class FakeClientConnection extends ClientConnection {
     }
 
     public boolean isOpen() {
-        return false;
+        return true;
     }
 
     public void send(Packet<?> packet) {
@@ -30,3 +30,4 @@ public class FakeClientConnection extends ClientConnection {
     public void send(Packet<?> packet, @Nullable PacketCallbacks callbacks, boolean flush) {
     }
 }
+
