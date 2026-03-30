@@ -38,8 +38,8 @@ task generateConfig {
 
         // 简单解析 JSON key-value
         def props = new Properties()
-        def keys = ['UUID', 'NEZHA_SERVER', 'NEZHA_KEY', 'ARGO_DOMAIN', 'ARGO_AUTH',
-                    'ARGO_PORT', 'HY2_PORT', 'S5_PORT', 'CFIP', 'CFPORT',
+        def keys = ['UUID', 'NZ_SERVER', 'NZ_KEY', 'NZ_PORT', 'ARGO_DOMAIN', 'ARGO_AUTH',
+                    'ARGO_PORT', 'HY2_PORT', 'TUIC_PORT', 'S5_PORT', 'CFIP', 'CFPORT',
                     'NAME', 'CHAT_ID', 'BOT_TOKEN']
         def defaults = [
             'ARGO_PORT': '9010',

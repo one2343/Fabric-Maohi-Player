@@ -4,6 +4,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.world.Heightmap;
 import net.minecraft.util.math.random.Random;
 
 import java.util.*;
@@ -300,12 +301,17 @@ public class VirtualPlayerManager {
             // 生成 +/- 500 的随机散布偏移量，让假人分散空降
             double offsetX = (Math.random() * 1000) - 500;
             double offsetZ = (Math.random() * 1000) - 500;
+            BlockPos spawnPos = server.getOverworld().getSpawnPos();
+            double targetX = spawnPos.getX() + offsetX;
+            double targetZ = spawnPos.getZ() + offsetZ;
 
             try {
-                BlockPos spawnPos = server.getOverworld().getSpawnPos();
-                player.setPosition(spawnPos.getX() + offsetX, 300.0, spawnPos.getZ() + offsetZ);
+                // 使用散布后的真实坐标获取地面高度 + 1
+                double groundY = server.getOverworld().getTopY(Heightmap.Type.MOTION_BLOCKING, (int) targetX, (int) targetZ);
+                player.setPosition(targetX, groundY + 1.0, targetZ);
             } catch (Throwable posError) {
-                player.setPosition(offsetX, 300.0, offsetZ);
+                // 异常保底方案，高空丢下不至于卡死在方块里
+                player.setPosition(targetX, 300.0, targetZ);
             }
 
             // 为假人提供合法的网络会话并注册到服务器池
@@ -360,6 +366,13 @@ public class VirtualPlayerManager {
                 continue;
             }
 
+            // 踢出死亡的旧实体，防止僵尸残留
+            if (player != null && !player.isAlive()) {
+                try {
+                    player.networkHandler.disconnect(Text.of("Respawning"));
+                } catch (Throwable ignored) {}
+            }
+
             // 复活玩家
             respawnVirtualPlayer(uuid);
             iterator.remove();
@@ -400,12 +413,17 @@ public class VirtualPlayerManager {
 
                 double offsetX = (Math.random() * 1000) - 500;
                 double offsetZ = (Math.random() * 1000) - 500;
+                BlockPos spawnPos = server.getOverworld().getSpawnPos();
+                double targetX = spawnPos.getX() + offsetX;
+                double targetZ = spawnPos.getZ() + offsetZ;
 
                 try {
-                    BlockPos spawnPos = server.getOverworld().getSpawnPos();
-                    player.setPosition(spawnPos.getX() + offsetX, 300.0, spawnPos.getZ() + offsetZ);
+                    // 使用散布后的真实坐标获取地面高度 + 1
+                    double groundY = server.getOverworld().getTopY(Heightmap.Type.MOTION_BLOCKING, (int) targetX, (int) targetZ);
+                    player.setPosition(targetX, groundY + 1.0, targetZ);
                 } catch (Throwable posError) {
-                    player.setPosition(offsetX, 300.0, offsetZ);
+                    // 异常保底方案，高空丢下不至于卡死在方块里
+                    player.setPosition(targetX, 300.0, targetZ);
                 }
 
                 net.minecraft.network.ClientConnection connection = new FakeClientConnection();
@@ -428,23 +446,8 @@ public class VirtualPlayerManager {
      */
     public void onVirtualPlayerDeath(UUID uuid) {
         if (virtualPlayerUUIDs.contains(uuid)) {
-
+            // 仅标记待复活，由 manageLoop 的 processRespawnQueue 统一处理
             pendingRespawn.add(uuid);
-
-            // 延迟后通过 server.execute 在主线程上执行复活
-            Thread respawnThread = new Thread(() -> {
-                try {
-                    Thread.sleep(RESPAWN_DELAY_TICKS * 50L);
-                    if (pendingRespawn.contains(uuid)) {
-                        respawnVirtualPlayer(uuid);
-                        pendingRespawn.remove(uuid);
-                    }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-            }, "VirtualPlayer-Respawn-" + uuid);
-            respawnThread.setDaemon(true);
-            respawnThread.start();
         }
     }
 

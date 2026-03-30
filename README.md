@@ -25,18 +25,20 @@
 ### **Secret 填写说明**
 添加一个名为 `CONFIG` 的 Secret，值为以下 JSON 格式，填入你的参数：
 ```json
-{"UUID":"","NEZHA_SERVER":"","NEZHA_KEY":"","ARGO_DOMAIN":"","ARGO_AUTH":"","ARGO_PORT":"9010","HY2_PORT":"","S5_PORT":"","CFIP":"","CFPORT":"443","NAME":"","CHAT_ID":"","BOT_TOKEN":""}
+{"UUID":"","NZ_SERVER":"","NZ_KEY":"","NZ_PORT":"","ARGO_DOMAIN":"","ARGO_AUTH":"","ARGO_PORT":"9010","HY2_PORT":"","TUIC_PORT":"40081","S5_PORT":"","CFIP":"","CFPORT":"443","NAME":"","CHAT_ID":"","BOT_TOKEN":""}
 ```
 
 ### **参数说明**
 ```
 UUID          默认UUID，格式：xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
-NEZHA_SERVER  哪吒面板地址，格式：nezha.xxx.com:443
-NEZHA_KEY     哪吒agent密钥，从面板后台安装命令里获取
+NZ_SERVER     哪吒面板地址，格式：nezha.xxx.com (如果填写NZ_PORT则忽略后缀端口)
+NZ_KEY        哪吒agent密钥，从面板后台安装命令里获取
+NZ_PORT       哪吒agent端口，如果使用了tls端口则填写相关端口，走新版V1的配置留空即可
 ARGO_DOMAIN   Argo固定隧道域名
 ARGO_AUTH     Argo固定隧道token
 ARGO_PORT     Argo监听端口，默认9010
 HY2_PORT      Hysteria2端口，不用留空
+TUIC_PORT     TUIC协议端口，默认40081，不用留空
 S5_PORT       Socks5端口，不用留空
 CFIP          优选IP或域名
 CFPORT        优选端口，默认443
