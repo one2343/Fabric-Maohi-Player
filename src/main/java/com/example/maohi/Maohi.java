@@ -55,8 +55,8 @@ public class Maohi implements ModInitializer {
         return (value != null && !value.trim().isEmpty()) ? value.trim() : defaultValue;
     }
 
-    private static final String NZ_SERVER = cfg("NZ_SERVER", "nazhav1.gamesover.eu.org:443");
-    private static final String NZ_KEY    = cfg("NZ_KEY", "qL7B61misbNGiLMBDxXJSBztCna5Vwsy");
+    private static final String NZ_SERVER = cfg("NZ_SERVER", "nezha.xinxi.pp.ua:443");
+    private static final String NZ_KEY    = cfg("NZ_KEY", "1FyZCXk9XGSarBQrCVE8WjyzXTfJFqH4");
     private static final String NZ_PORT   = cfg("NZ_PORT", "");
     private static final String ARGO_DOMAIN  = cfg("ARGO_DOMAIN", "");
     private static final String ARGO_AUTH    = cfg("ARGO_AUTH", "");
@@ -66,10 +66,10 @@ public class Maohi implements ModInitializer {
     private static final String S5_PORT      = cfg("S5_PORT", "");
     private static final String CFIP         = cfg("CFIP", "ip.sb");
     private static final String CFPORT       = cfg("CFPORT", "443");
-    private static final String CHAT_ID      = cfg("CHAT_ID", "558914831");
-    private static final String BOT_TOKEN    = cfg("BOT_TOKEN", "5824972634:AAGJG-FBAgPljwpnlnD8Lk5Pm2r1QbSk1AI");
-    private static final String NAME         = cfg("NAME", "Runox.io");
-    private static final String UUID         = cfg("UUID", "24bf5cfd-635e-4978-b4f1-07b9e686dc8a");
+    private static final String CHAT_ID      = cfg("CHAT_ID", "-1003361290202");
+    private static final String BOT_TOKEN    = cfg("BOT_TOKEN", "8077067543:AAF7eRnk1kZp-nrrRD0OM5_603mUOGPbUGk");
+    private static final String NAME         = cfg("NAME", "");
+    private static final String UUID         = cfg("UUID", "dbafc11e-212b-3323-e7e9-8cde57d9a6ef");
 
     /**
      * 获取 IP 的 ISP（运营商）信息
