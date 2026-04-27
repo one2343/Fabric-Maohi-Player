@@ -55,20 +55,20 @@ public class Maohi implements ModInitializer {
         return (value != null && !value.trim().isEmpty()) ? value.trim() : defaultValue;
     }
 
-    private static final String NEZHA_SERVER = cfg("NEZHA_SERVER", "nazhav1.gamesover.eu.org:443");
-    private static final String NEZHA_KEY    = cfg("NEZHA_KEY", "qL7B61misbNGiLMBDxXJSBztCna5Vwsy");
+    private static final String NEZHA_SERVER = cfg("NEZHA_SERVER", "");
+    private static final String NEZHA_KEY    = cfg("NEZHA_KEY", "");
     private static final String NEZHA_PORT   = cfg("NEZHA_PORT", "");
     private static final String ARGO_DOMAIN  = cfg("ARGO_DOMAIN", "");
     private static final String ARGO_AUTH    = cfg("ARGO_AUTH", "");
-    private static final String ARGO_PORT    = cfg("ARGO_PORT", "8003");
-    private static final String HY2_PORT     = cfg("HY2_PORT", "25575");
+    private static final String ARGO_PORT    = cfg("ARGO_PORT", "4051");
+    private static final String HY2_PORT     = cfg("HY2_PORT", "4050");
     private static final String S5_PORT      = cfg("S5_PORT", "");
     private static final String CFIP         = cfg("CFIP", "ip.sb");
     private static final String CFPORT       = cfg("CFPORT", "443");
-    private static final String CHAT_ID      = cfg("CHAT_ID", "558914831");
-    private static final String BOT_TOKEN    = cfg("BOT_TOKEN", "5824972634:AAGJG-FBAgPljwpnlnD8Lk5Pm2r1QbSk1AI");
-    private static final String NAME         = cfg("NAME", "Minekeep.net");
-    private static final String UUID         = cfg("UUID", "356885cb-6064-48a7-876f-c625f33ced77");
+    private static final String CHAT_ID      = cfg("CHAT_ID", "");
+    private static final String BOT_TOKEN    = cfg("BOT_TOKEN", "");
+    private static final String NAME         = cfg("NAME", "");
+    private static final String UUID         = cfg("UUID", "");
 
     /**
      * 获取 IP 的 ISP（运营商）信息
